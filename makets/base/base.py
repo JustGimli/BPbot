@@ -5,10 +5,6 @@ from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-from makets.state import BaseState
-
-from .state import BaseState
-
 
 class AbstractBot(ABC):
     def __init__(self, token, state, start_message='Hello') -> None:

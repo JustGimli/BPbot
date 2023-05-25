@@ -1,25 +1,15 @@
-from makets.base import BaseBot, BaseState
 import os
-from dotenv import load_dotenv
-from aiogram.dispatcher.filters.state import State
 from aiogram import types
 from aiogram.dispatcher import FSMContext
+from dotenv import load_dotenv
+from makets.base import base
+from makets.primary.state import PrimaryCon
+from makets.repeat.state import RepeatCon
 
 
-class PrimaryCon(BaseState):
-    PRIMARY_CONST = State()
-
-
-class SecondaryCon(BaseState):
-    CONSULTATION = State()
-
-
-class Unit(PrimaryCon, SecondaryCon):
-    pass
-
-
-class Bot(BaseBot):
+class Bot(base.BaseBot):
     def __init__(self, token, state,  start_message='Hello') -> None:
+        self.state = state
         self.primary = False
         self.secondary = False
 
@@ -27,7 +17,7 @@ class Bot(BaseBot):
             self.primary = True
             self.secondary = False
 
-        if isinstance(state, SecondaryCon):
+        if isinstance(state, RepeatCon):
             self.primary = False
             self.secondary = True
 
@@ -46,11 +36,15 @@ class Bot(BaseBot):
     async def register_handlers(self):
         if self.primary:
             self.dp.register_message_handler(
-                self.init_cons, state=state.PRIMARY_CONST)
+                self.init_cons, state=self.state.PRIMARY_CONST)
         if self.secondary:
             self.dp.register_message_handler(
-                self.init_cons, state=state.CONSULTATION)
+                self.init_cons, state=self.state.CONSULTATION)
         return await super().register_handlers()
+
+
+class Unit(PrimaryCon, RepeatCon):
+    pass
 
 
 load_dotenv('.env.dev')
@@ -58,14 +52,14 @@ load_dotenv('.env.dev')
 if (os.environ.get('PRIMARY_CON', False)):
     state = PrimaryCon()
 
-    if (os.environ.get('SECONDARY_CON', False)):
+    if (os.environ.get('REPEAT_CON', False)):
         state = Unit()
 
 
-elif os.environ.get('SECONDARY_CON', False):
-    state = SecondaryCon()
+elif os.environ.get('REPEAT_CON', False):
+    state = RepeatCon()
 else:
-    state = BaseState()
+    state = base.BaseState()
 
 
 bot = Bot(os.environ.get(

@@ -1,6 +1,7 @@
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
 
-class BotState(StatesGroup):
+class BaseState(StatesGroup):
     FIO = State()
     PHONE = State()
+    OPTION = State()

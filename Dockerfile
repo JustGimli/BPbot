@@ -17,7 +17,7 @@ COPY . ${PATH}
 WORKDIR ${PATH}
 
 
-CMD [ "python3", "testbot.py" ]
+CMD [ "python3", "main.py" ]
 
 
 

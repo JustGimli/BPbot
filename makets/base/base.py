@@ -1,21 +1,11 @@
 import asyncio
 from abc import ABC, abstractmethod
-from aiogram import Bot, Dispatcher, types
+from aiogram import types
 from aiogram.dispatcher import FSMContext
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 
 class AbstractBot(ABC):
-    def __init__(self, token, state, start_message='Hello') -> None:
-
-        # set bots
-        self.bot = Bot(token)
-        self.dp = Dispatcher(self.bot, storage=MemoryStorage())
-        self.start_message = start_message
-
-        self.state = state
-
     @abstractmethod
     async def register_handlers(self):
         self.dp.register_message_handler(self.start, commands=['start'])
@@ -34,9 +24,6 @@ class AbstractBot(ABC):
 
 
 class BaseBot(AbstractBot):
-    def __init__(self, token, state,  start_message='Hello', ) -> None:
-        super().__init__(token, start_message, state)
-
     def set_markup(self):
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)

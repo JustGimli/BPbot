@@ -3,6 +3,7 @@ from aiogram import types, Bot, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from dotenv import load_dotenv
+from makets.base import state
 from makets.base import base
 from makets.primary import primary_state, primary_handl
 from makets.repeat import repeat_state
@@ -55,7 +56,7 @@ class Unit(primary_state.PrimaryCon, repeat_state.RepeatCon):
     pass
 
 
-load_dotenv('.env.dev')
+load_dotenv('.env')
 
 if (os.environ.get('PRIMARY_CON', False)):
     state = primary_state.PrimaryCon()
@@ -67,7 +68,7 @@ if (os.environ.get('PRIMARY_CON', False)):
 elif os.environ.get('REPEAT_CON', False):
     state = repeat_state.RepeatCon()
 else:
-    state = base.BaseState()
+    state = state.BaseState()
 
 
 bot = TestBot(token=os.environ.get(

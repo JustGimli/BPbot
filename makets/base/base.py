@@ -12,14 +12,16 @@ class AbstractBot(ABC):
 
     async def start(self, message: types.Message):
         await self.bot.send_message(message.from_id, text=self.start_message)
-        await self.bot.send_message(message.from_id, 'Введите ваше ФИО через пробел')
+        await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
         await self.state.FIO.set()
 
     async def start_polling(self):
+        await self.bot.delete_webhook()
         await self.register_handlers()
         await self.dp.start_polling()
 
     def run(self):
+
         asyncio.run(self.start_polling())
 
 
@@ -37,7 +39,7 @@ class BaseBot(AbstractBot):
         if self.secondary:
             markup.add(
                 KeyboardButton(
-                    text='Вторичная консультация'
+                    text='Повторная консультация'
                 ))
 
         return markup
@@ -58,7 +60,7 @@ class BaseBot(AbstractBot):
                 )
             )
 
-            await self.bot.send_message(message.from_id, text='Хорошо, теперь введите телефон', reply_markup=markup)
+            await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
             await self.state.PHONE.set()
         else:
             await self.bot.send_message(message.from_id, 'Извините, повторите попытку')
@@ -70,17 +72,28 @@ class BaseBot(AbstractBot):
 
         markup = self.set_markup()
 
-        await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
+        await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
         await self.state.OPTION.set()
 
     async def set_option(self, message: types.Message, state: FSMContext):
 
         if message.text == 'Первичная консультация':
-            await self.bot.send_message(message.from_id, '1Введите данные')
-            await self.state.PRIMARY_CONST.set()
-        elif message.text == 'Вторичная консультация':
-            await self.bot.send_message(message.from_id, '2Введите данные')
-            await self.state.CONSULTATION.set()
+
+            text = '''Доступ к консультации открывается после оплаты.
+Стоимость первичной онлайн-консультации составляет 3 000 рублей.
+После оплаты у вас будет неделя, чтобы задать дополнительные вопросы'''
+
+            await self.bot.send_message(message.from_id, text)
+            await self.state.PRIMARY.set()
+
+        elif message.text == 'Повторная консультация':
+
+            text = '''Доступ к консультации открывается после оплаты.
+Стоимость повторной онлайн-консультации составляет 3 000 рублей.
+После оплаты у вас будет неделя, чтобы задать дополнительные вопросы'''
+
+            await self.bot.send_message(message.from_id, text)
+            await self.state.REPEAT.set()
         else:
             self.bot.send_message(
                 message.from_id, 'Извините такая опция отсутсвует')
@@ -92,3 +105,5 @@ class BaseBot(AbstractBot):
         self.dp.register_message_handler(self.get_phone, content_types=[
                                          types.ContentType.CONTACT], state=self.state.PHONE)
         return await super().start_polling()
+
+    # def send_message(self, message: types.Message):

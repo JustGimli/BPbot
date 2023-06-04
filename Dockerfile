@@ -2,6 +2,8 @@ FROM python:3-alpine
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1  
+# ENV PRIMARY_CON True
+ENV REPEAT_CON False
 ARG DockerHome="/app"
 
 RUN mkdir -p $DockerHome

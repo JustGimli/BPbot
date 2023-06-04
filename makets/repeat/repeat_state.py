@@ -3,4 +3,4 @@ from aiogram.dispatcher.filters.state import State
 
 
 class RepeatCon(BaseState):
-    CONSULTATION = State()
+    REPEAT = State()

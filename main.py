@@ -8,6 +8,7 @@ from makets.base import base
 from makets.primary import primary_state, primary_handl
 from makets.repeat import repeat_state
 from aiogram.utils.exceptions import ConflictError, CantGetUpdates
+import requests
 
 
 class TestBot(base.BaseBot):
@@ -41,7 +42,13 @@ class TestBot(base.BaseBot):
         try:
             await self.set_webhook()
         except CantGetUpdates as e:
-            print(e)
+            await self.bot.delete_webhook()
+
+        print(os.environ.get('TOKEN'))
+        requests.post(f'{os.getenv("URL")}chats/bot/', {
+            'chat_id': message.chat.id,
+            'token': os.environ.get('TOKEN')
+        })
 
         await self.bot.send_message(message.from_id, 'asd123')
 
@@ -58,13 +65,11 @@ class TestBot(base.BaseBot):
         return await super().register_handlers()
 
     async def set_webhook(self):
-        await self.bot.delete_webhook(drop_pending_updates=True)
-        print(os.getenv('WEBHOOK_URL'))
+        WEBHOOK_URL = f"{os.getenv('URL')}chats/"
 
-        try:
-            await self.bot.set_webhook(url=os.getenv('WEBHOOK_URL'))
-        except ConflictError:
-            pass
+        await self.bot.delete_webhook()
+
+        await self.bot.set_webhook(WEBHOOK_URL)
 
 
 class Unit(primary_state.PrimaryCon, repeat_state.RepeatCon):

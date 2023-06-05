@@ -106,4 +106,11 @@ class BaseBot(AbstractBot):
                                          types.ContentType.CONTACT], state=self.state.PHONE)
         return await super().start_polling()
 
+    # async def on_shutdown(self):
+    #     await self.bot.delete_webhook()
+
+    #     # Close Redis connection.
+    #     await self.dp.storage.close()
+    #     await self.dp.storage.wait_closed()
+
     # def send_message(self, message: types.Message):

@@ -1,4 +1,6 @@
+import os
 import asyncio
+import requests
 from abc import ABC, abstractmethod
 from aiogram import types
 from aiogram.dispatcher import FSMContext
@@ -11,6 +13,7 @@ class AbstractBot(ABC):
         self.dp.register_message_handler(self.start, commands=['start'])
 
     async def start(self, message: types.Message):
+
         await self.bot.send_message(message.from_id, text=self.start_message)
         await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
         await self.state.FIO.set()
@@ -47,10 +50,14 @@ class BaseBot(AbstractBot):
     async def get_fio(self, message: types.Message, state: FSMContext):
         text = message.text.strip(' ').split()
 
+        # async with self.state.proxy() as data:
+        #     data['user_message_count'] += 1
+
         if len(text) == 3:
 
             async with state.proxy() as data:
-                data['fio'] = ''.join(text)
+                data['first_name'] = text[0].strip()
+                data['last_name'] = text[1].strip()
 
             markup = ReplyKeyboardMarkup(resize_keyboard=True)
             markup.add(
@@ -68,7 +75,12 @@ class BaseBot(AbstractBot):
     async def get_phone(self, message: types.Message, state: FSMContext):
 
         async with state.proxy() as data:
-            data['phone'] = message.contact.phone_number
+            requests.post(f'{os.environ.get("URL")}chats/users/create/', data={'username': message.from_user.username,
+                                                                               "token": os.getenv("TOKEN", None),
+                                                                               "first_name": data['first_name'],
+                                                                               "last_name": data['last_name'],
+                                                                               "phone": message.contact.phone_number
+                                                                               })
 
         markup = self.set_markup()
 
@@ -105,12 +117,3 @@ class BaseBot(AbstractBot):
         self.dp.register_message_handler(self.get_phone, content_types=[
                                          types.ContentType.CONTACT], state=self.state.PHONE)
         return await super().start_polling()
-
-    # async def on_shutdown(self):
-    #     await self.bot.delete_webhook()
-
-    #     # Close Redis connection.
-    #     await self.dp.storage.close()
-    #     await self.dp.storage.wait_closed()
-
-    # def send_message(self, message: types.Message):

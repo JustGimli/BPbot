@@ -7,19 +7,20 @@ from makets.base import state
 from makets.base import base
 from makets.primary import primary_state, primary_handl
 from makets.repeat import repeat_state
-from aiogram.utils.exceptions import ConflictError, CantGetUpdates
+from aiogram.utils.exceptions import CantGetUpdates
+
 import requests
 
 
 class TestBot(base.BaseBot):
-    def __init__(self, token, state,  start_message='Hello') -> None:
+    def __init__(self, token, state,  start_message) -> None:
 
         # set bot
         self.state = state
         self.bot = Bot(token)
         self.dp = Dispatcher(self.bot, storage=MemoryStorage())
+        self.dp.skip_updates()
         self.start_message = start_message
-
         self.primary = False
         self.secondary = False
 
@@ -38,19 +39,37 @@ class TestBot(base.BaseBot):
             self.secondary = True
 
     async def primary_start(self, message: types.Message, state: FSMContext):
+        try:
+            requests.post(f'{os.getenv("URL")}chats/create/', {
+                'chat_id': message.from_user.id,
+                'sender_id': message.from_user.id,
+            })
+        except Exception as e:
+            print(e)
 
         try:
             await self.set_webhook()
         except CantGetUpdates as e:
             await self.bot.delete_webhook()
 
-        print(os.environ.get('TOKEN'))
-        requests.post(f'{os.getenv("URL")}chats/bot/', {
-            'chat_id': message.chat.id,
-            'token': os.environ.get('TOKEN')
-        })
+        try:
+            requests.post(f'{os.getenv("URL")}chats/bot/', {
+                'chat_id': message.from_user.id,
+                'token': os.environ.get('TOKEN')
+            })
 
-        await self.bot.send_message(message.from_id, 'asd123')
+            requests.post(f'{os.getenv("URL")}consultaion/create/', {
+                "token": os.environ.get('TOKEN'),
+                'username': message.from_user.username,
+                "consultation_type": "primary",
+            })
+        except Exception as e:
+            print(e)
+
+        await self.bot.send_message(message.from_id, 'Начало:')
+        await self.state.DOCUMENT.set()
+
+    # async def handle_message(self, message: types.Message, state: FSMContext):
 
     async def repeat_start(self, message: types.Message, state: FSMContext):
         await self.bot.send_message(message.from_id, 'dsa')
@@ -67,7 +86,7 @@ class TestBot(base.BaseBot):
     async def set_webhook(self):
         WEBHOOK_URL = f"{os.getenv('URL')}chats/"
 
-        await self.bot.delete_webhook()
+        await self.bot.delete_webhook(drop_pending_updates=True)
 
         await self.bot.set_webhook(WEBHOOK_URL)
 
@@ -77,6 +96,7 @@ class Unit(primary_state.PrimaryCon, repeat_state.RepeatCon):
 
 
 load_dotenv('.env')
+
 
 if (os.environ.get('PRIMARY_CON', True)):
     state = primary_state.PrimaryCon()
@@ -92,5 +112,5 @@ else:
 
 
 bot = TestBot(token=os.environ.get(
-    'TOKEN', '5337418205:AAF64PcryZpAC61AY0eKNwpBCZD2LVTXA1c'), state=state)
+    'TOKEN', '5337418205:AAF64PcryZpAC61AY0eKNwpBCZD2LVTXA1c'), state=state, start_message=os.getenv("START_MESSAGE", "Привет"))
 bot.run()

@@ -75,6 +75,7 @@ class BaseBot(AbstractBot):
     async def get_phone(self, message: types.Message, state: FSMContext):
 
         async with state.proxy() as data:
+            data['phone'] = message.contact.phone_number
             requests.post(f'{os.environ.get("URL")}chats/users/create/', data={'username': message.from_user.username,
                                                                                "token": os.getenv("TOKEN", None),
                                                                                "first_name": data['first_name'],

@@ -40,10 +40,12 @@ class TestBot(base.BaseBot):
 
     async def primary_start(self, message: types.Message, state: FSMContext):
         try:
-            requests.post(f'{os.getenv("URL")}chats/create/', {
-                'chat_id': message.from_user.id,
-                'sender_id': message.from_user.id,
-            })
+            async with state.proxy() as data:
+                requests.post(f'{os.getenv("URL")}chats/create/', {
+                    'chat_id': message.chat.id,
+                    'phone': data['phone'],
+                    'token': os.environ.get('TOKEN')
+                })
         except Exception as e:
             print(e)
 
@@ -54,7 +56,7 @@ class TestBot(base.BaseBot):
 
         try:
             requests.post(f'{os.getenv("URL")}chats/bot/', {
-                'chat_id': message.from_user.id,
+                'chat_id': message.chat.id,
                 'token': os.environ.get('TOKEN')
             })
 
@@ -63,7 +65,7 @@ class TestBot(base.BaseBot):
                 'username': message.from_user.username,
                 "consultation_type": "primary",
             })
-        except Exception as e:
+        except requests.exceptions.HTTPError as e:
             print(e)
 
         await self.bot.send_message(message.from_id, 'Начало:')

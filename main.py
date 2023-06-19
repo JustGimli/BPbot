@@ -44,7 +44,7 @@ class TestBot(base.BaseBot):
                 requests.post(f'{os.getenv("URL")}chats/create/', {
                     'chat_id': message.chat.id,
                     'phone': data['phone'],
-                    'token': os.environ.get('TOKEN')
+                    'token': os.environ.get('TOKEN'),
                 })
         except Exception as e:
             print(e)
@@ -60,7 +60,7 @@ class TestBot(base.BaseBot):
                 'token': os.environ.get('TOKEN')
             })
 
-            requests.post(f'{os.getenv("URL")}consultaion/create/', {
+            requests.post(f'{os.getenv("URL")}chats/consultation/create/', {
                 "token": os.environ.get('TOKEN'),
                 'username': message.from_user.username,
                 "consultation_type": "primary",

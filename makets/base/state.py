@@ -5,3 +5,4 @@ class BaseState(StatesGroup):
     FIO = State()
     PHONE = State()
     OPTION = State()
+    PAYMENT = State()

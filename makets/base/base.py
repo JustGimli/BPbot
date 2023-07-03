@@ -1,22 +1,32 @@
 import os
+import json
 import asyncio
 import requests
 from abc import ABC, abstractmethod
-from aiogram import types
+from aiogram import types,  Bot, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 
 class AbstractBot(ABC):
     @abstractmethod
     async def register_handlers(self):
-        self.dp.register_message_handler(self.start, commands=['start'])
+        # self.dp.register_message_handler(self.start, commands=['start'])
+        pass
 
-    async def start(self, message: types.Message):
+    async def start(self, message: types.Message, state: FSMContext):
+        await state.reset_state()
 
-        await self.bot.send_message(message.from_id, text=self.start_message)
-        await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
-        await self.state.FIO.set()
+        if message.text == '/start':
+
+            if self.start_img is not None:
+                await self.bot.send_photo(chat_id=message.chat.id, photo=self.start_img, caption=self.start_message)
+            else:
+                await self.bot.send_message(message.from_id, text=self.start_message)
+
+            await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
+            await self.state.FIO.set()
 
     async def start_polling(self):
         await self.bot.delete_webhook()
@@ -24,28 +34,44 @@ class AbstractBot(ABC):
         await self.dp.start_polling()
 
     def run(self):
-
         asyncio.run(self.start_polling())
 
 
 class BaseBot(AbstractBot):
+    def __init__(self, token):
+        self.bot = Bot(token)
+        self._get_start_message()
+        self.dp = Dispatcher(self.bot, storage=MemoryStorage())
+
     def set_markup(self):
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
 
-        if self.primary:
-            markup.add(
-                KeyboardButton(
-                    text='Первичная консультация'
-                ))
+        try:
+            self.consultations = json.loads(os.environ.get('CONSULTATIONS'))
+            for i in self.consultations.keys():
+                markup.add(KeyboardButton(text=i))
 
-        if self.secondary:
-            markup.add(
-                KeyboardButton(
-                    text='Повторная консультация'
-                ))
+            return markup
+        except Exception as e:
+            print(e)
+            return None
 
-        return markup
+    def send_create_user(self, req):
+        requests.post(
+            f'{os.environ.get("URL")}botusers/users/create/', data=req)
+
+    def _get_start_message(self):
+        try:
+            data = requests.get(
+                f'{os.environ.get("URL")}bots/message/', data={"token": os.getenv("TOKEN", None)}).json()
+            self.start_message = data.get('start_message')
+            self.start_img = data.get('bot_img', None)
+        except:
+            self.start_message = "Привет!"
+
+        if self.start_message is None:
+            self.start_message = "Привет!"
 
     async def get_fio(self, message: types.Message, state: FSMContext):
         text = message.text.strip(' ').split()
@@ -73,40 +99,56 @@ class BaseBot(AbstractBot):
             await self.bot.send_message(message.from_id, 'Извините, повторите попытку')
 
     async def get_phone(self, message: types.Message, state: FSMContext):
-
         async with state.proxy() as data:
             data['phone'] = message.contact.phone_number
-            requests.post(f'{os.environ.get("URL")}chats/users/create/', data={'username': message.from_user.username,
-                                                                               "token": os.getenv("TOKEN", None),
-                                                                               "first_name": data['first_name'],
-                                                                               "last_name": data['last_name'],
-                                                                               "phone": message.contact.phone_number
-                                                                               })
+            req = {'username': message.from_user.username,
+                   "token": os.getenv("TOKEN", None),
+                   "first_name": data['first_name'],
+                   "last_name": data['last_name'],
+                   "phone": data['phone'],
+                   }
+
+        self.send_create_user(req)
 
         markup = self.set_markup()
 
         await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
         await self.state.OPTION.set()
 
+    async def get_phone_by_typing(self, message: types.Message, state: FSMContext):
+        async with state.proxy() as data:
+            data['phone'] = message.text
+            req = {'username': message.from_user.username,
+                   "token": os.getenv("TOKEN", None),
+                   "first_name": data['first_name'],
+                   "last_name": data['last_name'],
+                   "phone": data['phone']
+                   }
+
+        self.send_create_user(req)
+        markup = self.set_markup()
+
+        await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+        await self.state.OPTION.set()
+
     async def set_option(self, message: types.Message, state: FSMContext):
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(KeyboardButton(text="Оплатить консультацию"))
 
-        if message.text == 'Первичная консультация':
+        if message.text in self.consultations.keys():
+            text = f'''Доступ к консультации открывается после оплаты.
+Стоимость консультации составляет {self.consultations[message.text].get('cost', None)} рублей.
+После оплаты у вас будет неделя, чтобы задать дополнительные вопросы.'''
 
-            text = '''Доступ к консультации открывается после оплаты.
-Стоимость первичной онлайн-консультации составляет 3 000 рублей.
-После оплаты у вас будет неделя, чтобы задать дополнительные вопросы'''
+            async with state.proxy() as data:
+                data['cost'] = self.consultations[message.text].get(
+                    'cost', None)
+                data['days'] = self.consultations[message.text].get(
+                    'days', None)
 
-            await self.bot.send_message(message.from_id, text)
-            await self.state.PRIMARY.set()
+            await self.bot.send_message(message.from_id, text, reply_markup=markup)
+            await self.state.PAYMENT.set()
 
-        elif message.text == 'Повторная консультация':
-
-            text = '''Доступ к консультации открывается после оплаты.
-Стоимость повторной онлайн-консультации составляет 3 000 рублей.
-После оплаты у вас будет неделя, чтобы задать дополнительные вопросы'''
-
-            await self.bot.send_message(message.from_id, text)
-            await self.state.REPEAT.set()
         else:
             self.bot.send_message(
                 message.from_id, 'Извините такая опция отсутсвует')
@@ -115,6 +157,8 @@ class BaseBot(AbstractBot):
         self.dp.register_message_handler(self.get_fio, state=self.state.FIO)
         self.dp.register_message_handler(
             self.set_option, state=self.state.OPTION)
-        self.dp.register_message_handler(self.get_phone, content_types=[
-                                         types.ContentType.CONTACT], state=self.state.PHONE)
-        return await super().start_polling()
+        self.dp.register_message_handler(
+            self.get_phone, content_types=[types.ContentType.CONTACT],  state=self.state.PHONE)
+        self.dp.register_message_handler(
+            self.get_phone_by_typing, content_types=[types.ContentType.TEXT],  state=self.state.PHONE)
+        await super().start_polling()

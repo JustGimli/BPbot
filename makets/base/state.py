@@ -6,3 +6,4 @@ class BaseState(StatesGroup):
     PHONE = State()
     OPTION = State()
     PAYMENT = State()
+    CHAT = State()

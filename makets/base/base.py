@@ -7,6 +7,7 @@ from aiogram import types,  Bot, Dispatcher
 from aiogram.dispatcher import FSMContext
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
+from aiogram.utils.exceptions import CantGetUpdates
 
 
 class AbstractBot(ABC):
@@ -26,10 +27,9 @@ class AbstractBot(ABC):
                 await self.bot.send_message(message.from_id, text=self.start_message)
 
             await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
-            await self.state.FIO.set()
+            await self.state.CHAT.set()
 
     async def start_polling(self):
-        await self.bot.delete_webhook()
         await self.register_handlers()
         await self.dp.start_polling()
 
@@ -67,6 +67,7 @@ class BaseBot(AbstractBot):
                 f'{os.environ.get("URL")}bots/message/', data={"token": os.getenv("TOKEN", None)}).json()
             self.start_message = data.get('start_message')
             self.start_img = data.get('bot_img', None)
+
         except:
             self.start_message = "Привет!"
 
@@ -145,6 +146,8 @@ class BaseBot(AbstractBot):
                     'cost', None)
                 data['days'] = self.consultations[message.text].get(
                     'days', None)
+
+                data['cons_name'] = message.text
 
             await self.bot.send_message(message.from_id, text, reply_markup=markup)
             await self.state.PAYMENT.set()

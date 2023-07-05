@@ -21,13 +21,20 @@ class AbstractBot(ABC):
 
         if message.text == '/start':
 
-            if self.start_img is not None:
+            if self.start_img:
                 await self.bot.send_photo(chat_id=message.chat.id, photo=self.start_img, caption=self.start_message)
             else:
                 await self.bot.send_message(message.from_id, text=self.start_message)
 
-            await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
-            await self.state.CHAT.set()
+            data = requests.post(f'{os.environ.get("URL")}botusers/me/',
+                                 {'username': message.from_user.username})
+            if data.status_code == 200:
+                markup = self.set_markup()
+                await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
+                await self.state.OPTION.set()
+            else:
+                await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
+                await self.state.FIO.set()
 
     async def start_polling(self):
         await self.register_handlers()
@@ -59,7 +66,7 @@ class BaseBot(AbstractBot):
 
     def send_create_user(self, req):
         requests.post(
-            f'{os.environ.get("URL")}botusers/users/create/', data=req)
+            f'{os.environ.get("URL")}botusers/create/', data=req)
 
     def _get_start_message(self):
         try:
@@ -70,6 +77,7 @@ class BaseBot(AbstractBot):
 
         except:
             self.start_message = "Привет!"
+            self.start_img = None
 
         if self.start_message is None:
             self.start_message = "Привет!"
@@ -102,35 +110,99 @@ class BaseBot(AbstractBot):
     async def get_phone(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.contact.phone_number
-            req = {'username': message.from_user.username,
-                   "token": os.getenv("TOKEN", None),
-                   "first_name": data['first_name'],
-                   "last_name": data['last_name'],
-                   "phone": data['phone'],
-                   }
 
-        self.send_create_user(req)
+            if os.environ.get('PARAMS') != '':
+                data['params'] = json.loads(os.environ.get('PARAMS'))
+                data['res_params'] = {}
+                params = data['params']
 
-        markup = self.set_markup()
+                for key, value in params.items():
+                    del params[key]
+                    data['current'] = key
+                    data['params'] = params
+                    await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
+                    await self.state.PARAMS.set()
+                    break
+            else:
+                req = {'username': message.from_user.username,
+                       "token": os.getenv("TOKEN", None),
+                       "first_name": data['first_name'],
+                       "last_name": data['last_name'],
+                       "phone": data['phone'],
+                       }
 
-        await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
-        await self.state.OPTION.set()
+                self.send_create_user(req)
+
+                markup = self.set_markup()
+
+                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.state.OPTION.set()
 
     async def get_phone_by_typing(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.text
-            req = {'username': message.from_user.username,
-                   "token": os.getenv("TOKEN", None),
-                   "first_name": data['first_name'],
-                   "last_name": data['last_name'],
-                   "phone": data['phone']
-                   }
 
-        self.send_create_user(req)
-        markup = self.set_markup()
+            if os.environ.get('PARAMS') != '':
+                data['params'] = json.loads(os.environ.get('PARAMS'))
+                data['res_params'] = {}
+                params = data['params']
 
-        await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
-        await self.state.OPTION.set()
+                for key, value in params.items():
+                    del params[key]
+                    data['current'] = key
+                    data['params'] = params
+                    await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
+                    await self.state.PARAMS.set()
+                    break
+
+            else:
+                req = {'username': message.from_user.username,
+                       "token": os.getenv("TOKEN", None),
+                       "first_name": data['first_name'],
+                       "last_name": data['last_name'],
+                       "phone": data['phone'],
+                       }
+
+                self.send_create_user(req)
+
+                markup = self.set_markup()
+
+                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.state.OPTION.set()
+
+    async def handle_params(self, message: types.Message, state: FSMContext):
+        async with state.proxy() as data:
+            if data.get('current', None):
+
+                data['res_params'].update(
+                    {data['current']: message.text})
+
+                data['current'] = False
+
+            if data['params']:
+                params = data['params']
+
+                for key, value in params.items():
+                    del params[key]
+                    data['current'] = key
+                    data['params'] = params
+                    await self.bot.send_message(message.from_id, text=value)
+                    break
+
+            else:
+                req = {'username': message.from_user.username,
+                       "token": os.getenv("TOKEN", None),
+                       "first_name": data['first_name'],
+                       "last_name": data['last_name'],
+                       "phone": data['phone'],
+                       "params": json.dumps(data['res_params']),
+                       }
+
+                self.send_create_user(req)
+
+                markup = self.set_markup()
+                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.state.OPTION.set()
 
     async def set_option(self, message: types.Message, state: FSMContext):
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -153,11 +225,13 @@ class BaseBot(AbstractBot):
             await self.state.PAYMENT.set()
 
         else:
-            self.bot.send_message(
+            await self.bot.send_message(
                 message.from_id, 'Извините такая опция отсутсвует')
 
     async def start_polling(self):
         self.dp.register_message_handler(self.get_fio, state=self.state.FIO)
+        self.dp.register_message_handler(
+            self.handle_params, state=self.state.PARAMS)
         self.dp.register_message_handler(
             self.set_option, state=self.state.OPTION)
         self.dp.register_message_handler(

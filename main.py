@@ -29,13 +29,13 @@ class Bot(base.BaseBot):
                     else:
                         description = "Консультация"
                 link = requests.post(
-                    f'{os.environ.get("URL")}payments/link/', data={"id": os.getenv("ID", None),
-                                                                    'username': message.from_user.username,
-                                                                    'cost': cost,
-                                                                    "description": description,
-                                                                    'user_id': message.from_id,
-                                                                    'name': name
-                                                                    }).json().get('link')
+                    f'{os.environ.get("URL_PATH")}payments/link/', data={"id": os.getenv("ID", None),
+                                                                         'username': message.from_user.username,
+                                                                         'cost': cost,
+                                                                         "description": description,
+                                                                         'user_id': message.from_id,
+                                                                         'name': name
+                                                                         }).json().get('link')
             except requests.exceptions.RequestException:
                 link = None
 
@@ -63,7 +63,7 @@ class Bot(base.BaseBot):
                 files = {'document': file}
 
                 requests.post(
-                    f'{os.environ.get("URL")}chats/', data=data, files=files)
+                    f'{os.environ.get("URL_PATH")}chats/', data=data, files=files)
 
             os.remove(file_path)
         elif message.photo:
@@ -80,7 +80,7 @@ class Bot(base.BaseBot):
             with open(file_path, 'rb') as file:
                 files = {'photo': file}
                 requests.post(
-                    f'{os.environ.get("URL")}chats/', data=data, files=files)
+                    f'{os.environ.get("URL_PATH")}chats/', data=data, files=files)
 
             os.remove(file_path)
 
@@ -95,7 +95,7 @@ class Bot(base.BaseBot):
             }
 
             requests.post(
-                f'{os.environ.get("URL")}chats/', data=payload)
+                f'{os.environ.get("URL_PATH")}chats/', data=payload)
 
     def register_handlers(self):
         self.dp.register_message_handler(

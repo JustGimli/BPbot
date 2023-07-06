@@ -26,7 +26,7 @@ class AbstractBot(ABC):
             else:
                 await self.bot.send_message(message.from_id, text=self.start_message)
 
-            data = requests.post(f'{os.environ.get("URL")}botusers/me/',
+            data = requests.post(f'{os.environ.get("URL_PATH")}botusers/me/',
                                  {'username': message.from_user.username})
             if data.status_code == 200:
                 markup = self.set_markup()
@@ -66,12 +66,12 @@ class BaseBot(AbstractBot):
 
     def send_create_user(self, req):
         requests.post(
-            f'{os.environ.get("URL")}botusers/create/', data=req)
+            f'{os.environ.get("URL_PATH")}botusers/create/', data=req)
 
     def _get_start_message(self):
         try:
             data = requests.get(
-                f'{os.environ.get("URL")}bots/message/', data={"token": os.getenv("TOKEN", None)}).json()
+                f'{os.environ.get("URL_PATH")}bots/message/', data={"token": os.getenv("TOKEN", None)}).json()
             self.start_message = data.get('start_message')
             self.start_img = data.get('bot_img', None)
 

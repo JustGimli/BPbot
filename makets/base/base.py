@@ -33,8 +33,36 @@ class AbstractBot(ABC):
                 await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
                 await self.state.OPTION.set()
             else:
-                await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
-                await self.state.FIO.set()
+                if os.getenv('IS_FIO', 'False') == "True":
+                    await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
+                    await self.state.FIO.set()
+                elif os.getenv('is_PHONE', 'False') == "True":
+                    await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
+                    await self.state.PHONE.set()
+                elif os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
+                    async with state.proxy() as data:
+                        data['params'] = json.loads(os.environ.get('PARAMS'))
+                        data['res_params'] = {}
+                        params = data['params']
+
+                        for key, value in params.items():
+                            del params[key]
+                            data['current'] = key
+                            data['params'] = params
+                            await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
+                            await self.state.PARAMS.set()
+                            break
+                else:
+                    req = {'username': message.from_user.username,
+                           "token": os.getenv("TOKEN", None),
+                           }
+
+                    self.send_create_user(req)
+
+                    markup = self.set_markup()
+
+                    await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                    await self.state.OPTION.set()
 
     async def start_polling(self):
         await self.register_handlers()
@@ -101,17 +129,44 @@ class BaseBot(AbstractBot):
                     request_contact=True
                 )
             )
+            if (os.environ.get('IS_PHONE') == "True"):
+                await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
+                await self.state.PHONE.set()
+            elif os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
+                async with state.proxy() as data:
+                    data['params'] = json.loads(os.environ.get('PARAMS'))
+                    data['res_params'] = {}
+                    params = data['params']
 
-            await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
-            await self.state.PHONE.set()
+                    for key, value in params.items():
+                        del params[key]
+                        data['current'] = key
+                        data['params'] = params
+                        await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
+                        await self.state.PARAMS.set()
+                        break
+            else:
+                async with state.proxy() as data:
+                    req = {'username': message.from_user.username,
+                           "token": os.getenv("TOKEN", None),
+                           "first_name": data['first_name'],
+                           "last_name": data['last_name'],
+                           }
+
+                self.send_create_user(req)
+
+                markup = self.set_markup()
+
+                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.state.OPTION.set()
         else:
-            await self.bot.send_message(message.from_id, 'Извините, повторите попытку')
+            await self.bot.send_message(message.from_id, 'Извините, Вы должны прислать полное ФИО через пробел.')
 
     async def get_phone(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.contact.phone_number
 
-            if os.environ.get('PARAMS') != '':
+            if os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
                 data['params'] = json.loads(os.environ.get('PARAMS'))
                 data['res_params'] = {}
                 params = data['params']

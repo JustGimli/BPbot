@@ -262,6 +262,7 @@ class BaseBot(AbstractBot):
     async def set_option(self, message: types.Message, state: FSMContext):
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(KeyboardButton(text="Оплатить консультацию"))
+        markup.add(KeyboardButton(text="Назад"))
 
         if message.text in self.consultations.keys():
             text = f'''Доступ к консультации открывается после оплаты.

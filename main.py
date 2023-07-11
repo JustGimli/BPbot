@@ -34,7 +34,8 @@ class Bot(base.BaseBot):
                                                                          'cost': cost,
                                                                          "description": description,
                                                                          'user_id': message.from_id,
-                                                                         'name': name
+                                                                         'name': name,
+                                                                         'consultation_id': data['cons_id']
                                                                          }).json().get('link')
             except requests.exceptions.RequestException:
                 link = None
@@ -43,7 +44,7 @@ class Bot(base.BaseBot):
                 resize_keyboard=True)
             button = types.InlineKeyboardButton("Назад", callback_data='back')
             markup.add(button)
-
+            await self.bot.send_message(message.from_id, 'Спасибо!!', reply_markup=types.ReplyKeyboardRemove())
             await self.bot.send_message(message.from_id, f'Ссылка для оплаты: {link}.', reply_markup=markup)
             await self.state.CHAT.set()
         elif message.text == "Назад":

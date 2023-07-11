@@ -33,13 +33,13 @@ class AbstractBot(ABC):
                 await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
                 await self.state.OPTION.set()
             else:
-                if os.getenv('IS_FIO', 'False') == "True":
+                if int(os.getenv('IS_FIO')):
                     await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
                     await self.state.FIO.set()
-                elif os.getenv('is_PHONE', 'False') == "True":
+                elif int(os.getenv('IS_PHONE')):
                     await self.bot.send_message(message.from_id, 'Пожалуйста, напишите ваши Фамилию, Имя и Отчество: 👇')
                     await self.state.PHONE.set()
-                elif os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
+                elif json.loads(os.environ.get('PARAMS')) != '' and json.loads(os.environ.get('PARAMS')):
                     async with state.proxy() as data:
                         data['params'] = json.loads(os.environ.get('PARAMS'))
                         data['res_params'] = {}
@@ -129,10 +129,10 @@ class BaseBot(AbstractBot):
                     request_contact=True
                 )
             )
-            if (os.environ.get('IS_PHONE') == "True"):
+            if (int(os.environ.get('IS_PHONE'))):
                 await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
                 await self.state.PHONE.set()
-            elif os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
+            elif json.loads(os.environ.get('PARAMS')) != '' and json.loads(os.environ.get('PARAMS')):
                 async with state.proxy() as data:
                     data['params'] = json.loads(os.environ.get('PARAMS'))
                     data['res_params'] = {}
@@ -165,9 +165,9 @@ class BaseBot(AbstractBot):
     async def get_phone(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.contact.phone_number
-
-            if os.environ.get('PARAMS') != '' and os.environ.get('PARAMS'):
-                data['params'] = json.loads(os.environ.get('PARAMS'))
+            params = json.loads(os.environ.get('PARAMS'))
+            if params != '' and params:
+                data['params'] = params
                 data['res_params'] = {}
                 params = data['params']
 
@@ -197,7 +197,7 @@ class BaseBot(AbstractBot):
         async with state.proxy() as data:
             data['phone'] = message.text
 
-            if os.environ.get('PARAMS') != '':
+            if json.loads(os.environ.get('PARAMS')) != '':
                 data['params'] = json.loads(os.environ.get('PARAMS'))
                 data['res_params'] = {}
                 params = data['params']
@@ -274,7 +274,8 @@ class BaseBot(AbstractBot):
                     'cost', None)
                 data['days'] = self.consultations[message.text].get(
                     'days', None)
-
+                data['cons_id'] = self.consultations[message.text].get(
+                    'id', None)
                 data['cons_name'] = message.text
 
             await self.bot.send_message(message.from_id, text, reply_markup=markup)

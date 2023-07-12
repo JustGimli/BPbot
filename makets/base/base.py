@@ -169,7 +169,6 @@ class BaseBot(AbstractBot):
             if params != '' and params:
                 data['params'] = params
                 data['res_params'] = {}
-                params = data['params']
 
                 for key, value in params.items():
                     del params[key]
@@ -196,9 +195,9 @@ class BaseBot(AbstractBot):
     async def get_phone_by_typing(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.text
-
-            if json.loads(os.environ.get('PARAMS')) != '':
-                data['params'] = json.loads(os.environ.get('PARAMS'))
+            params = json.loads(os.environ.get('PARAMS')
+            if params != '' and params:
+                data['params'] = )
                 data['res_params'] = {}
                 params = data['params']
 

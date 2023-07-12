@@ -166,6 +166,7 @@ class BaseBot(AbstractBot):
         async with state.proxy() as data:
             data['phone'] = message.contact.phone_number
             params = json.loads(os.environ.get('PARAMS'))
+
             if params != '' and params:
                 data['params'] = params
                 data['res_params'] = {}
@@ -195,9 +196,9 @@ class BaseBot(AbstractBot):
     async def get_phone_by_typing(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
             data['phone'] = message.text
-            params = json.loads(os.environ.get('PARAMS')
+            params = json.loads(os.environ.get('PARAMS'))
             if params != '' and params:
-                data['params'] = )
+                data['params'] = params
                 data['res_params'] = {}
                 params = data['params']
 

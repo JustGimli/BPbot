@@ -94,7 +94,7 @@ class BaseBot(AbstractBot):
 
     def send_create_user(self, req):
         requests.post(
-            f'{os.environ.get("URL_PATH")}botusers/', data=req)
+            f'{os.environ.get("URL_PATH")}botusers/create/', data=req)
 
     def _get_start_message(self):
         try:

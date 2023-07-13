@@ -27,7 +27,7 @@ class AbstractBot(ABC):
                 await self.bot.send_message(message.from_id, text=self.start_message)
 
             data = requests.post(f'{os.environ.get("URL_PATH")}botusers/me/',
-                                 {'username': message.from_user.username})
+                                 {'username': message.from_user.username, "token": os.getenv("TOKEN", None)})
             if data.status_code == 200:
                 markup = self.set_markup()
                 await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)

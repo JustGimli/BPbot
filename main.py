@@ -33,7 +33,7 @@ class Bot(base.BaseBot):
                                                                          'username': message.from_user.username,
                                                                          'cost': cost,
                                                                          "description": description,
-                                                                         'user_id': message.from_id,
+                                                                         'user_id': message.chat.id,
                                                                          'name': name,
                                                                          'consultation_id': data['cons_id']
                                                                          }).json().get('link')
@@ -65,7 +65,7 @@ class Bot(base.BaseBot):
 
             data = {
                 'type': 'document',
-                "id": message.from_id,
+                "id": message.chat.id,
             }
 
             with open(file_path, 'rb') as file:
@@ -81,7 +81,7 @@ class Bot(base.BaseBot):
 
             data = {
                 'type': 'photo',
-                "id": message.from_id,
+                "id": message.chat.id,
             }
 
             await photo.download(file_path)
@@ -97,7 +97,7 @@ class Bot(base.BaseBot):
             payload = {
                 'type': 'text',
                 "text": message.text,
-                "id": message.from_id,
+                "id": message.chat.id,
                 "first_name": message.from_user.first_name,
                 "last_name": message.from_user.last_name,
                 "username": message.from_user.username,

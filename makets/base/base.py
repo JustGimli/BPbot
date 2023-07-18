@@ -16,6 +16,24 @@ class AbstractBot(ABC):
         # self.dp.register_message_handler(self.start, commands=['start'])
         pass
 
+    async def get_avatar(self, message: types.Message):
+        user_id = message.from_user.id
+
+        try:
+            user = await self.bot.get_chat(user_id)
+            photo = user.photo.big_file_id
+            if photo:
+                file = await self.bot.get_file(photo)
+                avatar_url = file.file_path
+
+                response = requests.get(
+                    f"https://api.telegram.org/file/bot{os.environ.get('TOKEN')}/{avatar_url}")
+                response.raise_for_status()
+
+                return (f'{message.user.id}.jpg', response.content)
+        except:
+            return None
+
     async def start(self, message: types.Message, state: FSMContext):
         await state.reset_state()
 
@@ -111,56 +129,51 @@ class BaseBot(AbstractBot):
             self.start_message = "Привет!"
 
     async def get_fio(self, message: types.Message, state: FSMContext):
-        text = message.text.strip(' ').split()
+        text = message.text.strip().split(" ")
 
-        # async with self.state.proxy() as data:
-        #     data['user_message_count'] += 1
+        async with state.proxy() as data:
+            data['first_name'] = text[0].strip()
+            data['last_name'] = text[1].strip()
+            data['surname'] = text[2].strip() if len(text) > 1 else ""
 
-        if len(text) == 3:
-
-            async with state.proxy() as data:
-                data['first_name'] = text[0].strip()
-                data['last_name'] = text[1].strip()
-
-            markup = ReplyKeyboardMarkup(resize_keyboard=True)
-            markup.add(
-                KeyboardButton(
-                    text='Поделиться Номером',
-                    request_contact=True
-                )
+        markup = ReplyKeyboardMarkup(resize_keyboard=True)
+        markup.add(
+            KeyboardButton(
+                text='Поделиться Номером',
+                request_contact=True
             )
-            if (int(os.environ.get('IS_PHONE'))):
-                await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
-                await self.state.PHONE.set()
-            elif json.loads(os.environ.get('PARAMS')) != '' and json.loads(os.environ.get('PARAMS')):
-                async with state.proxy() as data:
-                    data['params'] = json.loads(os.environ.get('PARAMS'))
-                    data['res_params'] = {}
-                    params = data['params']
+        )
+        if (int(os.environ.get('IS_PHONE'))):
+            await self.bot.send_message(message.from_id, text='Напишите ваш номер телефона или нажмите на кнопку "Поделиться номером".', reply_markup=markup)
+            await self.state.PHONE.set()
+        elif json.loads(os.environ.get('PARAMS')) != '' and json.loads(os.environ.get('PARAMS')):
+            async with state.proxy() as data:
+                data['params'] = json.loads(os.environ.get('PARAMS'))
+                data['res_params'] = {}
+                params = data['params']
 
-                    for key, value in params.items():
-                        del params[key]
-                        data['current'] = key
-                        data['params'] = params
-                        await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
-                        await self.state.PARAMS.set()
-                        break
-            else:
-                async with state.proxy() as data:
-                    req = {'username': message.from_user.username,
-                           "token": os.getenv("TOKEN", None),
-                           "first_name": data['first_name'],
-                           "last_name": data['last_name'],
-                           }
-
-                self.send_create_user(req)
-
-                markup = self.set_markup()
-
-                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
-                await self.state.OPTION.set()
+                for key, value in params.items():
+                    del params[key]
+                    data['current'] = key
+                    data['params'] = params
+                    await self.bot.send_message(message.from_id, text=value, reply_markup=types.ReplyKeyboardRemove())
+                    await self.state.PARAMS.set()
+                    break
         else:
-            await self.bot.send_message(message.from_id, 'Извините, Вы должны прислать полное ФИО через пробел.')
+            async with state.proxy() as data:
+                req = {'username': message.from_user.username,
+                       "token": os.getenv("TOKEN", None),
+                       "first_name": data['first_name'],
+                       "last_name": data['last_name'],
+                       'surname': data['surname'],
+                       }
+
+            self.send_create_user(req)
+
+            markup = self.set_markup()
+
+            await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+            await self.state.OPTION.set()
 
     async def get_phone(self, message: types.Message, state: FSMContext):
         async with state.proxy() as data:
@@ -184,6 +197,8 @@ class BaseBot(AbstractBot):
                        "first_name": data['first_name'],
                        "last_name": data['last_name'],
                        "phone": data['phone'],
+                       'surname': data['surname'],
+                       'photo': await self.get_avatar(message)
                        }
 
                 self.send_create_user(req)
@@ -216,6 +231,8 @@ class BaseBot(AbstractBot):
                        "first_name": data['first_name'],
                        "last_name": data['last_name'],
                        "phone": data['phone'],
+                       'surname': data['surname'],
+                       'photo': await self.get_avatar(message)
                        }
 
                 self.send_create_user(req)
@@ -251,6 +268,8 @@ class BaseBot(AbstractBot):
                        "last_name": data['last_name'],
                        "phone": data['phone'],
                        "params": json.dumps(data['res_params']),
+                       'surname': data['surname'],
+                       'photo': await self.get_avatar(message)
                        }
 
                 self.send_create_user(req)

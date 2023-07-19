@@ -13,7 +13,6 @@ from aiogram.utils.exceptions import CantGetUpdates
 class AbstractBot(ABC):
     @abstractmethod
     async def register_handlers(self):
-        # self.dp.register_message_handler(self.start, commands=['start'])
         pass
 
     async def get_avatar(self, message: types.Message):
@@ -30,8 +29,10 @@ class AbstractBot(ABC):
                     f"https://api.telegram.org/file/bot{os.environ.get('TOKEN')}/{avatar_url}")
                 response.raise_for_status()
 
-                return (f'{message.user.id}.jpg', response.content)
-        except:
+                return {"photo": (avatar_url, response.content)}
+            return None
+        except Exception as e:
+            print(e)
             return None
 
     async def start(self, message: types.Message, state: FSMContext):
@@ -46,6 +47,7 @@ class AbstractBot(ABC):
 
             data = requests.post(f'{os.environ.get("URL_PATH")}botusers/me/',
                                  {'username': message.from_user.username, "token": os.getenv("TOKEN", None)})
+
             if data.status_code == 200:
                 markup = self.set_markup()
                 await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
@@ -71,11 +73,14 @@ class AbstractBot(ABC):
                             await self.state.PARAMS.set()
                             break
                 else:
-                    req = {'username': message.from_user.username,
-                           "token": os.getenv("TOKEN", None),
-                           }
+                    req = {
+                        'username': message.from_user.username,
+                        "token": os.getenv("TOKEN", None),
+                    }
 
-                    self.send_create_user(req)
+                    photo = await self.get_avatar(message)
+
+                    self.send_create_user(req, photo)
 
                     markup = self.set_markup()
 
@@ -110,9 +115,9 @@ class BaseBot(AbstractBot):
             print(e)
             return None
 
-    def send_create_user(self, req):
+    def send_create_user(self, req, files=None):
         requests.post(
-            f'{os.environ.get("URL_PATH")}botusers/create/', data=req)
+            f'{os.environ.get("URL_PATH")}botusers/create/', data=req, files=files)
 
     def _get_start_message(self):
         try:
@@ -134,7 +139,7 @@ class BaseBot(AbstractBot):
         async with state.proxy() as data:
             data['first_name'] = text[0].strip()
             data['last_name'] = text[1].strip()
-            data['surname'] = text[2].strip() if len(text) > 1 else ""
+            data['surname'] = text[2].strip() if len(text) > 2 else ""
 
         markup = ReplyKeyboardMarkup(resize_keyboard=True)
         markup.add(
@@ -167,8 +172,8 @@ class BaseBot(AbstractBot):
                        "last_name": data['last_name'],
                        'surname': data['surname'],
                        }
-
-            self.send_create_user(req)
+            photo = await self.get_avatar(message)
+            self.send_create_user(req, files=photo)
 
             markup = self.set_markup()
 
@@ -198,10 +203,9 @@ class BaseBot(AbstractBot):
                        "last_name": data['last_name'],
                        "phone": data['phone'],
                        'surname': data['surname'],
-                       'photo': await self.get_avatar(message)
                        }
-
-                self.send_create_user(req)
+                photo = await self.get_avatar(message)
+                self.send_create_user(req, files=photo)
 
                 markup = self.set_markup()
 
@@ -232,10 +236,9 @@ class BaseBot(AbstractBot):
                        "last_name": data['last_name'],
                        "phone": data['phone'],
                        'surname': data['surname'],
-                       'photo': await self.get_avatar(message)
                        }
-
-                self.send_create_user(req)
+                photo = await self.get_avatar(message)
+                self.send_create_user(req, files=photo)
 
                 markup = self.set_markup()
 
@@ -269,10 +272,9 @@ class BaseBot(AbstractBot):
                        "phone": data['phone'],
                        "params": json.dumps(data['res_params']),
                        'surname': data['surname'],
-                       'photo': await self.get_avatar(message)
                        }
-
-                self.send_create_user(req)
+                photo = await self.get_avatar(message)
+                self.send_create_user(req, files=photo)
 
                 markup = self.set_markup()
                 await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)

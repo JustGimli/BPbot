@@ -17,44 +17,6 @@ class Bot(base.BaseBot):
         self.state = state
         super().__init__(token)
 
-    async def payments(self, message: types.Message, state: FSMContext):
-        if message.text == "Оплатить консультацию":
-
-            try:
-                async with state.proxy() as data:
-                    cost = data['cost']
-                    name = data['cons_name']
-                    if os.environ.get("FIO") and data['days']:
-                        description = f'Консультация от {os.environ.get("FIO")}. Период {data["days"]} дней.'
-                    else:
-                        description = "Консультация"
-                link = requests.post(
-                    f'{os.environ.get("URL_PATH")}payments/link/', data={"id": os.getenv("ID", None),
-                                                                         'username': message.from_user.username,
-                                                                         'cost': cost,
-                                                                         "description": description,
-                                                                         'user_id': message.chat.id,
-                                                                         'name': name,
-                                                                         'consultation_id': data['cons_id']
-                                                                         }).json().get('link')
-            except requests.exceptions.RequestException:
-                link = None
-
-            markup = types.InlineKeyboardMarkup(
-                resize_keyboard=True)
-            button = types.InlineKeyboardButton("Назад", callback_data='back')
-            markup.add(button)
-            await self.bot.send_message(message.from_id, 'Спасибо!!', reply_markup=types.ReplyKeyboardRemove())
-            await self.bot.send_message(message.from_id, f'Ссылка для оплаты: {link}.', reply_markup=markup)
-            await self.state.CHAT.set()
-        elif message.text == "Назад":
-            markup = self.set_markup()
-            await self.bot.send_message(message.from_user.id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
-            await self.state.OPTION.set()
-        else:
-            await state.reset_state()
-            await self.bot.send_message(message.from_id, "Команда не разпознана введите /start для начала диалога", reply_markup=types.ReplyKeyboardRemove())
-
     async def chat(self, message: types.Message, state: FSMContext):
 
         if message.document is not None:
@@ -108,15 +70,13 @@ class Bot(base.BaseBot):
 
     async def back(self, callback_query: types.CallbackQuery):
         markup = self.set_markup()
-        await self.bot.send_message(callback_query.from_user.id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+        await self.bot.send_message(callback_query.from_user.id, text=self._get_cons_description(), reply_markup=markup)
         await self.state.OPTION.set()
 
     def register_handlers(self):
 
         self.dp.register_message_handler(
             self.start, commands=['start'], state='*')
-        self.dp.register_message_handler(
-            self.payments, state=self.state.PAYMENT)
         self.dp.register_message_handler(self.chat, content_types=[
                                          'photo', 'text', 'document'], state=self.state.CHAT)
         self.dp.register_callback_query_handler(self.back, text='back')

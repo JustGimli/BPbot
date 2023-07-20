@@ -50,7 +50,7 @@ class AbstractBot(ABC):
 
             if data.status_code == 200:
                 markup = self.set_markup()
-                await self.bot.send_message(message.from_id, text='Выберите тип консультации: ', reply_markup=markup)
+                await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
                 await self.state.OPTION.set()
             else:
                 if int(os.getenv('IS_FIO')):
@@ -84,7 +84,7 @@ class AbstractBot(ABC):
 
                     markup = self.set_markup()
 
-                    await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                    await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
                     await self.state.OPTION.set()
 
     async def start_polling(self):
@@ -93,6 +93,15 @@ class AbstractBot(ABC):
 
     def run(self):
         asyncio.run(self.start_polling())
+
+    def _get_cons_description(self):
+        text = "Выберите тип консультации:\n\n"
+        for i in self.consultations.keys():
+            text += f"{i} - {self.consultations[i].get('description', '')}\n"
+
+        text += "\nДля оплаты нажмите на кнопку:"
+
+        return text
 
 
 class BaseBot(AbstractBot):
@@ -177,7 +186,7 @@ class BaseBot(AbstractBot):
 
             markup = self.set_markup()
 
-            await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+            await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
             await self.state.OPTION.set()
 
     async def get_phone(self, message: types.Message, state: FSMContext):
@@ -209,7 +218,7 @@ class BaseBot(AbstractBot):
 
                 markup = self.set_markup()
 
-                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
                 await self.state.OPTION.set()
 
     async def get_phone_by_typing(self, message: types.Message, state: FSMContext):
@@ -242,7 +251,7 @@ class BaseBot(AbstractBot):
 
                 markup = self.set_markup()
 
-                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
                 await self.state.OPTION.set()
 
     async def handle_params(self, message: types.Message, state: FSMContext):
@@ -277,30 +286,56 @@ class BaseBot(AbstractBot):
                 self.send_create_user(req, files=photo)
 
                 markup = self.set_markup()
-                await self.bot.send_message(message.from_id, text='Спасибо! Выберите тип консультации: ', reply_markup=markup)
+                await self.bot.send_message(message.from_id, text=self._get_cons_description(), reply_markup=markup)
                 await self.state.OPTION.set()
 
     async def set_option(self, message: types.Message, state: FSMContext):
-        markup = ReplyKeyboardMarkup(resize_keyboard=True)
-        markup.add(KeyboardButton(text="Оплатить консультацию"))
-        markup.add(KeyboardButton(text="Назад"))
+        markup = types.InlineKeyboardMarkup(resize_keyboard=True)
+        markup.add(types.InlineKeyboardButton(text="Оплатить консультацию"))
+        markup.add(types.InlineKeyboardButton(
+            text="Назад", callback_data="back"))
 
         if message.text in self.consultations.keys():
+            try:
+                async with state.proxy() as data:
+                    data['days'] = self.consultations[message.text].get(
+                        'days', None)
+
+                    data['cons_id'] = self.consultations[message.text].get(
+                        'id', None)
+                    data['cons_name'] = message.text
+
+                    cost = self.consultations[message.text].get(
+                        'cost', None)
+                    name = data['cons_name']
+                    if os.environ.get("FIO") and data['days']:
+                        description = f'Консультация от {os.environ.get("FIO")}. Период {data["days"]} дней.'
+                    else:
+                        description = "Консультация"
+                link = requests.post(
+                    f'{os.environ.get("URL_PATH")}payments/link/', data={"id": os.getenv("ID", None),
+                                                                         'username': message.from_user.username,
+                                                                         'cost': cost,
+                                                                         "description": description,
+                                                                         'user_id': message.chat.id,
+                                                                         'name': name,
+                                                                         'consultation_id': data['cons_id']
+                                                                         }).json().get('link')
+            except requests.exceptions.RequestException:
+                link = None
+
             text = f'''Доступ к консультации открывается после оплаты.
 Стоимость консультации составляет {self.consultations[message.text].get('cost', None)} рублей.
 После оплаты у вас будет неделя, чтобы задать дополнительные вопросы.'''
 
-            async with state.proxy() as data:
-                data['cost'] = self.consultations[message.text].get(
-                    'cost', None)
-                data['days'] = self.consultations[message.text].get(
-                    'days', None)
-                data['cons_id'] = self.consultations[message.text].get(
-                    'id', None)
-                data['cons_name'] = message.text
+            markup = types.InlineKeyboardMarkup(resize_keyboard=True)
+            markup.add(types.InlineKeyboardButton(
+                text="Оплатить консультацию", url=link))
+            markup.add(types.InlineKeyboardButton(
+                text="Назад", callback_data="back"))
 
             await self.bot.send_message(message.from_id, text, reply_markup=markup)
-            await self.state.PAYMENT.set()
+            await self.state.CHAT.set()
 
         else:
             await self.bot.send_message(
